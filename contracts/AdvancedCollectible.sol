@@ -10,6 +10,7 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
     mapping(bytes32 => uint256) public requestIdToTokenId;
 
     event RequestedCollectible(bytes32 indexed requestId);
+    event ReturnedCollectible(bytes32 indexed requestId, uint256 randomNumber);
     enum Breed {
         PUG,
         SHIBA_INU,
@@ -38,9 +39,13 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
         public
         returns (bytes32)
     {
+        // requestId is returned from Chainlink requestRandomness function
         bytes32 requestId = requestRandomness(keyHash, fee);
+        // Mapp sender to their Link requestId
         requestIdToSender[requestId] = msg.sender;
+        // Mapp Token URI to their Link requestId
         requestIdToTokenURI[requestId] = tokenURI;
+        // For testing
         emit RequestedCollectible(requestId);
     }
 
@@ -48,15 +53,28 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
         internal
         override
     {
+        // retreives dogOwner based on Link requestId
         address dogOwner = requestIdToSender[requestId];
+        // retreives tokenURI based on Link requestId
         string memory tokenURI = requestIdToTokenURI[requestId];
         uint256 newItemId = tokenCounter;
+        // Mints new NFT ->  _safeMint(address to, uint256 tokenId) in ERC 721
         _safeMint(dogOwner, newItemId);
         _setTokenURI(newItemId, tokenURI);
         Breed breed = Breed(randomNumber % 3);
+        // Maps token ID to the tokens breed
         tokenIdToBreed[newItemId] = breed;
+        // Maps requestId to th token ID
         requestIdToTokenId[requestId] = newItemId;
         tokenCounter = tokenCounter + 1;
         emit ReturnedCollectible(requestId, randomNumber);
+    }
+
+    function setTokenURI(uint256 tokenId, string memory _tokenURI) public {
+        require(
+            _isApprovedOrOwner(_msgSender(), tokenId),
+            "ERC721: transfer caller is not owner nor approved"
+        );
+        _setTokenURI(tokenId, _tokenURI);
     }
 }
