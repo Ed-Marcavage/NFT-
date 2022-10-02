@@ -6,10 +6,19 @@ import "@chainlink/contracts/src/v0.6/VRFConsumerBase.sol";
 contract AdvancedCollectible is ERC721, VRFConsumerBase {
     mapping(bytes32 => address) public requestIdToSender;
     mapping(bytes32 => string) public requestIdToTokenURI;
+    mapping(uint256 => Breed) public tokenIdToBreed;
+    mapping(bytes32 => uint256) public requestIdToTokenId;
+
     event RequestedCollectible(bytes32 indexed requestId);
+    enum Breed {
+        PUG,
+        SHIBA_INU,
+        ST_BERNARD
+    }
 
     bytes32 internal keyHash;
     uint256 internal fee;
+    uint256 public tokenCounter;
 
     constructor(
         address _VRFCoordinator,
@@ -19,7 +28,11 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
         public
         VRFConsumerBase(_VRFCoordinator, _LinkToken)
         ERC721("Dogie", "DOG")
-    {}
+    {
+        tokenCounter = 0;
+        keyHash = _keyhash;
+        fee = 0.1 * 10**18;
+    }
 
     function createCollectible(string memory tokenURI)
         public
@@ -29,5 +42,21 @@ contract AdvancedCollectible is ERC721, VRFConsumerBase {
         requestIdToSender[requestId] = msg.sender;
         requestIdToTokenURI[requestId] = tokenURI;
         emit RequestedCollectible(requestId);
+    }
+
+    function fulfillRandomness(bytes32 requestId, uint256 randomNumber)
+        internal
+        override
+    {
+        address dogOwner = requestIdToSender[requestId];
+        string memory tokenURI = requestIdToTokenURI[requestId];
+        uint256 newItemId = tokenCounter;
+        _safeMint(dogOwner, newItemId);
+        _setTokenURI(newItemId, tokenURI);
+        Breed breed = Breed(randomNumber % 3);
+        tokenIdToBreed[newItemId] = breed;
+        requestIdToTokenId[requestId] = newItemId;
+        tokenCounter = tokenCounter + 1;
+        emit ReturnedCollectible(requestId, randomNumber);
     }
 }
