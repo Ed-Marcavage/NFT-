@@ -3,6 +3,7 @@ from brownie import AdvancedCollectible, network
 from metadata import sample_metadata
 from pathlib import Path
 import os
+import json
 import requests
 from scripts.helpful_scripts import get_breed
 
@@ -44,6 +45,14 @@ def write_metadata(token_ids, nft_contract):
                 image_path = "./img/{}.png".format(
                     breed.lower().replace('_', '-'))
                 image_to_upload = upload_to_ipfs(image_path)
+            image_to_upload = (
+                breed_to_image_uri[breed] if not image_to_upload else image_to_upload
+            )
+            collectible_metadata["image"] = image_to_upload
+            with open(metadata_file_name, "w") as file:
+                json.dump(collectible_metadata, file)
+            if os.getenv("UPLOAD_IPFS") == "true":
+                upload_to_ipfs(metadata_file_name)
                 
 def upload_to_ipfs(filepath):
     with Path(filepath).open("rb") as fp:
